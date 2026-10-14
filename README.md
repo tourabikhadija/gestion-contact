@@ -16,11 +16,11 @@ Chaque contact contient les informations suivantes :
 
 ## Technologies utilisées
 
-- **Frontend :** React.js, JavaScript, CSS
-- **Backend :** Node.js, Express.js
+- **Frontend :** React.js, TypeScript, CSS
+- **Backend :** Node.js, Express.js, TypeScript
 - **Base de données :** MongoDB, Mongoose
 - **API :** REST API
 
 ## Objectif du projet
 
-Ce projet a pour objectif de mettre en pratique les concepts du développement Full Stack JavaScript, notamment la création d’une interface utilisateur, le développement d’une API REST et la gestion des données dans une base de données MongoDB.
+Ce projet a pour objectif de mettre en pratique les concepts du développement Full Stack avec TypeScript, notamment la création d’une interface utilisateur, le développement d’une API REST et la gestion des données dans une base de données MongoDB.
