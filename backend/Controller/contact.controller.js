@@ -1,15 +1,27 @@
 
 const Contact = require("../models/Contact");
 
+
 // Ajouter un contact
 const ajouterContact = async (req, res) => {
   try {
+    console.log("Données reçues :", req.body);
+
     const contact = await Contact.create(req.body);
+
+    console.log("Contact créé :", contact);
+
     res.status(201).json(contact);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de l'ajout" });
+    console.error("Erreur MongoDB :", error);
+
+    res.status(500).json({
+      message: "Erreur lors de l'ajout",
+      error: error.message,
+    });
   }
 };
+
 
 // Afficher tous les contacts
 const afficherContacts = async (req, res) => {

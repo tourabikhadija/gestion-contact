@@ -1,122 +1,209 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import type { Contact } from "./types";
+import ContactForm from "./components/ContactForm";
+import ContactCard from "./components/ContactCard";
 
-function App() {
-  const [count, setCount] = useState(0)
+const API_URL = "http://localhost:5000/api/contacts";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// Structure des données reçues depuis MongoDB
+type BackendContact = {
+  _id: string;
+  nomComplet: string;
+  email: string;
+  telephone: string;
+};
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Convertir les données du Backend vers le format React
+function formatContact(contact: BackendContact): Contact {
+  return {
+    id: contact._id,
+    name: contact.nomComplet,
+    email: contact.email,
+    phone: contact.telephone,
+  };
 }
 
-export default App
+function App() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingContact, setEditingContact] =
+    useState<Contact | null>(null);
+  const [error, setError] = useState("");
+
+  // 1. Afficher les contacts depuis MongoDB
+  useEffect(() => {
+    async function fetchContacts() {
+      try {
+        const response = await fetch(API_URL);
+
+        if (!response.ok) {
+          throw new Error("Impossible de charger les contacts.");
+        }
+
+        const data: BackendContact[] = await response.json();
+
+        setContacts(data.map(formatContact));
+      } catch (error) {
+        console.error("Erreur de chargement :", error);
+        setError(
+          "Impossible de charger les contacts. Vérifie le Backend."
+        );
+      }
+    }
+
+    fetchContacts();
+  }, []);
+
+  // 2. Ajouter ou modifier un contact
+  async function saveContact(contact: Omit<Contact, "id">) {
+    try {
+      setError("");
+
+      const isEditing = editingContact !== null;
+
+      const url = isEditing
+        ? `${API_URL}/${editingContact.id}`
+        : API_URL;
+
+      const response = await fetch(url, {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nomComplet: contact.name,
+          email: contact.email,
+          telephone: contact.phone,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        console.error("Erreur Backend :", response.status, data);
+
+        throw new Error(
+          data?.error ||
+            data?.message ||
+            `Erreur HTTP ${response.status}`
+        );
+      }
+
+      const savedContact = formatContact(data as BackendContact);
+
+      if (isEditing) {
+        setContacts((previous) =>
+          previous.map((item) =>
+            item.id === savedContact.id ? savedContact : item
+          )
+        );
+      } else {
+        setContacts((previous) => [...previous, savedContact]);
+      }
+
+      setShowForm(false);
+      setEditingContact(null);
+    } catch (error) {
+      console.error("Erreur d'enregistrement :", error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Impossible d'enregistrer le contact."
+      );
+    }
+  }
+
+  // 3. Supprimer un contact
+  async function deleteContact(id: string) {
+    try {
+      setError("");
+
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message || "Erreur lors de la suppression."
+        );
+      }
+
+      setContacts((previous) =>
+        previous.filter((contact) => contact.id !== id)
+      );
+    } catch (error) {
+      console.error("Erreur de suppression :", error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de supprimer le contact."
+      );
+    }
+  }
+
+  // Ouvrir le formulaire de modification
+  function editContact(contact: Contact) {
+    setEditingContact(contact);
+    setShowForm(true);
+  }
+
+  // Fermer le formulaire
+  function cancelForm() {
+    setShowForm(false);
+    setEditingContact(null);
+  }
+
+  return (
+    <div className="app">
+      <header>
+        <h1>Gestion Contact</h1>
+        <p>Gérez vos contacts facilement.</p>
+
+        <button
+          onClick={() => {
+            setEditingContact(null);
+            setShowForm(true);
+          }}
+        >
+          Ajouter un contact
+        </button>
+      </header>
+
+      {error && <p role="alert">{error}</p>}
+
+      {showForm && (
+        <ContactForm
+          key={editingContact?.id ?? "new"}
+          initialContact={editingContact}
+          onSubmit={saveContact}
+          onCancel={cancelForm}
+        />
+      )}
+
+      <section>
+        <h2>Mes contacts ({contacts.length})</h2>
+
+        {contacts.length === 0 ? (
+          <p>Aucun contact pour le moment.</p>
+        ) : (
+          <div className="contacts-list">
+            {contacts.map((contact) => (
+              <ContactCard
+                key={contact.id}
+                {...contact}
+                onEdit={() => editContact(contact)}
+                onDelete={() => deleteContact(contact.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export default App;
